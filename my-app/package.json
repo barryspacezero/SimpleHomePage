@@ -1,7 +1,8 @@
 {
-  "name": "my-app",
-  "version": "0.1.0",
+  "name": "ecommerce-store",
+  "version": "1.0.0",
   "private": true,
+  "description": "Modern e-commerce store built with Next.js and React",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
