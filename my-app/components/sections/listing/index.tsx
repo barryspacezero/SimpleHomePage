@@ -5,19 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ProductCard from '../../common/productCard';
 import FilterSidebar from './filterSidebar';
-import productsData from './dummydata';
+import { ProductService, type Product } from '@/lib/products';
 import { useCart } from '@/contexts/CartContext';
-
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  category: string;
-  brand: string;
-  rating: number;
-  description: string;
-}
 
 interface Filters {
   categories: string[];
@@ -105,22 +94,34 @@ const ProductListing: React.FC = () => {
   const searchParams = useSearchParams();
   const { state, dispatch } = useCart();
 
-  const [products] = useState<Product[]>(productsData);
-  const [filters, setFilters] = useState<Filters>({
-    categories: [],
-    priceRange: { min: 0, max: 1000 },
-    brands: [],
-    search: '',
-  });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Initialize filters from URL params
+  // Load products on component mount
   useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const productsData = await ProductService.getAllProducts();
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  // Derive filters directly from URL params
+  const filters = useMemo(() => {
     const categoryParam = searchParams.get('category');
     const priceParam = searchParams.get('price');
     const brandParam = searchParams.get('brand');
     const searchParam = searchParams.get('search');
 
-    const newFilters = {
+    return {
       categories: categoryParam ? [categoryParam] : [],
       priceRange: priceParam ?
         { min: 0, max: parseInt(priceParam.split('-')[1] || '1000') } :
@@ -128,12 +129,7 @@ const ProductListing: React.FC = () => {
       brands: brandParam ? [brandParam] : [],
       search: searchParam || '',
     };
-
-    // Only update if filters actually changed
-    if (JSON.stringify(newFilters) !== JSON.stringify(filters)) {
-      setFilters(newFilters);
-    }
-  }, [filters, searchParams]); // Removed filters from dependency array to avoid cascading renders
+  }, [searchParams]);
 
   // Update URL when filters change
   const updateURL = useCallback((newFilters: Filters) => {
@@ -192,13 +188,11 @@ const ProductListing: React.FC = () => {
 
   const handleFilterChange = useCallback((newFilters: Omit<Filters, 'search'>) => {
     const updatedFilters = { ...newFilters, search: filters.search };
-    setFilters(updatedFilters);
     updateURL(updatedFilters);
   }, [filters.search, updateURL]);
 
   const handleSearchChange = useCallback((searchTerm: string) => {
     const updatedFilters = { ...filters, search: searchTerm };
-    setFilters(updatedFilters);
     updateURL(updatedFilters);
   }, [filters, updateURL]);
 
@@ -216,6 +210,25 @@ const ProductListing: React.FC = () => {
       });
     }
   }, [products, dispatch]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="bg-gray-100 min-h-screen">
+        <Header
+          searchTerm={filters.search}
+          onSearchChange={handleSearchChange}
+          cartItemCount={state.items.reduce((sum, item) => sum + item.quantity, 0)}
+        />
+        <main className="container mx-auto px-6 py-8">
+          <div className="text-center bg-white p-12 rounded-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading products...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-100 min-h-screen">
@@ -251,7 +264,6 @@ const ProductListing: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setFilters({ categories: [], priceRange: { min: 0, max: 1000 }, brands: [], search: '' });
                     router.push('/');
                   }}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded"

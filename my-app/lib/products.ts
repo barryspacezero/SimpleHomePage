@@ -1,4 +1,17 @@
-export default [
+// Product type definition
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  category: string;
+  brand: string;
+  rating: number;
+  description: string;
+}
+
+// Mock database - in a real app, this would be your database or API
+const PRODUCTS_DB: Product[] = [
   {
     "id": "running-shoes-001",
     "name": "Performance Running Shoes",
@@ -108,6 +121,55 @@ export default [
     "brand": "TerraTrek",
     "rating": 4.7,
     "description": "Lightweight and comfortable daypack with hydration compatibility, perfect for day hikes."
-  },
-  
-]
+  }
+];
+
+// Product service functions
+export class ProductService {
+  // Get all products (for listing page)
+  static async getAllProducts(): Promise<Product[]> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return PRODUCTS_DB;
+  }
+
+  // Get single product by ID (for product detail page)
+  static async getProductById(id: string): Promise<Product | null> {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return PRODUCTS_DB.find(product => product.id === id) || null;
+  }
+
+  // Get products by category (for filtering)
+  static async getProductsByCategory(category: string): Promise<Product[]> {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return PRODUCTS_DB.filter(product => product.category === category);
+  }
+
+  // Search products (for search functionality)
+  static async searchProducts(query: string): Promise<Product[]> {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const lowercaseQuery = query.toLowerCase();
+    return PRODUCTS_DB.filter(product =>
+      product.name.toLowerCase().includes(lowercaseQuery) ||
+      product.description.toLowerCase().includes(lowercaseQuery) ||
+      product.category.toLowerCase().includes(lowercaseQuery) ||
+      product.brand.toLowerCase().includes(lowercaseQuery)
+    );
+  }
+
+  // Get unique categories
+  static async getCategories(): Promise<string[]> {
+    const products = await this.getAllProducts();
+    return [...new Set(products.map(p => p.category))];
+  }
+
+  // Get unique brands
+  static async getBrands(): Promise<string[]> {
+    const products = await this.getAllProducts();
+    return [...new Set(products.map(p => p.brand))];
+  }
+}
+
+// For backward compatibility, export the data array
+export default PRODUCTS_DB;

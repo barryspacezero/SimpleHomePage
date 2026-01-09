@@ -1,26 +1,99 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import productsData from '@/components/sections/listing/dummydata';
+import { ProductService, type Product } from '@/lib/products';
 import Image from 'next/image';
 import Link from 'next/link';
 
-export default function ProductPage({ params }: { params: { id: string } }) {
+export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { dispatch } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const product = productsData.find(p => p.id === params.id);
+  // Unwrap the params Promise
+  const { id } = use(params);
 
+  // Fetch product data when component mounts
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const productData = await ProductService.getProductById(id);
+        setProduct(productData);
+      } catch (err) {
+        setError('Failed to load product');
+        console.error('Error fetching product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="bg-gray-100 min-h-screen">
+        <header className="bg-blue-600 sticky top-0 z-10">
+          <div className="container mx-auto px-6 py-4">
+            <Link href="/" className="text-2xl font-bold text-white">Logo</Link>
+          </div>
+        </header>
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center bg-white p-12 rounded-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading product...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="bg-gray-100 min-h-screen">
+        <header className="bg-blue-600 sticky top-0 z-10">
+          <div className="container mx-auto px-6 py-4">
+            <Link href="/" className="text-2xl font-bold text-white">Logo</Link>
+          </div>
+        </header>
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center bg-white p-12 rounded-lg">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">
+              ← Back to Products
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Product not found
   if (!product) {
     return (
-      <div className="container mx-auto px-6 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Product Not Found</h1>
-          <Link href="/" className="text-blue-600 hover:text-blue-800">
-            ← Back to Products
-          </Link>
+      <div className="bg-gray-100 min-h-screen">
+        <header className="bg-blue-600 sticky top-0 z-10">
+          <div className="container mx-auto px-6 py-4">
+            <Link href="/" className="text-2xl font-bold text-white">Logo</Link>
+          </div>
+        </header>
+        <div className="container mx-auto px-6 py-8">
+          <div className="text-center bg-white p-12 rounded-lg">
+            <h1 className="text-2xl font-bold text-gray-800 mb-4">Product Not Found</h1>
+            <p className="text-gray-600 mb-4">The product with ID &quot;{id}&quot; does not exist.</p>
+            <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">
+              ← Back to Products
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -57,7 +130,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="bg-gray-100 min-h-screen">
-      {/* Header */}
       <header className="bg-blue-600 sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
           <Link href="/" className="text-2xl font-bold text-white">Logo</Link>
@@ -65,7 +137,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        {/* Breadcrumb */}
         <nav className="mb-6">
           <Link href="/" className="text-blue-600 hover:text-blue-800">Home</Link>
           <span className="mx-2 text-gray-500">/</span>
@@ -73,9 +144,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Image Section */}
           <div className="space-y-4">
-            {/* Main Image */}
             <div className="relative w-full h-96 bg-white rounded-lg overflow-hidden">
               <Image
                 src={images[selectedImageIndex]}
@@ -86,15 +155,16 @@ export default function ProductPage({ params }: { params: { id: string } }) {
               />
             </div>
             
-            {/* Image Thumbnails */}
             <div className="flex space-x-2">
               {images.map((image, index) => (
                 <button
                   key={index}
+                  type="button"
                   onClick={() => setSelectedImageIndex(index)}
                   className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 ${
                     selectedImageIndex === index ? 'border-blue-600' : 'border-gray-300'
                   }`}
+                  aria-label={`View image ${index + 1}`}
                 >
                   <Image
                     src={image}
@@ -108,40 +178,33 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             </div>
           </div>
 
-          {/* Details Section */}
           <div className="bg-white p-6 rounded-lg">
             <h1 className="text-3xl font-bold text-gray-800 mb-4">{product.name}</h1>
             
-            {/* Rating */}
             <div className="flex items-center mb-4">
               <div className="flex">{renderStars(product.rating)}</div>
               <span className="ml-2 text-gray-600">({product.rating.toFixed(1)})</span>
             </div>
 
-            {/* Price */}
             <div className="text-3xl font-bold text-gray-800 mb-4">
               ${product.price.toFixed(2)}
             </div>
 
-            {/* Category */}
             <div className="mb-4">
               <span className="text-sm text-gray-600">Category: </span>
               <span className="text-sm font-medium text-blue-600">{product.category}</span>
             </div>
 
-            {/* Brand */}
             <div className="mb-6">
               <span className="text-sm text-gray-600">Brand: </span>
               <span className="text-sm font-medium">{product.brand}</span>
             </div>
 
-            {/* Description */}
             <div className="mb-6">
               <h3 className="text-lg font-semibold mb-2">Description</h3>
               <p className="text-gray-700">{product.description}</p>
             </div>
 
-            {/* Quantity Selector */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Quantity
@@ -167,7 +230,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
               </div>
             </div>
 
-            {/* Add to Cart Button */}
             <button
               type="button"
               onClick={handleAddToCart}
@@ -178,7 +240,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* Reviews Section */}
         <div className="mt-12 bg-white p-6 rounded-lg">
           <h3 className="text-2xl font-bold text-gray-800 mb-6">Customer Reviews</h3>
           <div className="space-y-4">
